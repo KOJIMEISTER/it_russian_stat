@@ -15,6 +15,10 @@ func main() {
 		Addr:    ":8080",
 		Handler: router(),
 	}
+	shutdown(srv)
+}
+
+func shutdown(srv *http.Server) {
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Listen: %s\n", err)
