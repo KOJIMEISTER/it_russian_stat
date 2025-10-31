@@ -1,14 +1,24 @@
-FROM golang:1.23.4-bookworm AS builder
-
+FROM golang:1.23.4-bookworm AS deps
 WORKDIR /app
-COPY go.mod ./
+COPY go.mod go.sum ./
 RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/bin/main ./cmd/api
 
-FROM gcr.io/distroless/static-debian12
-WORKDIR /app
-COPY --from=builder --chown=nonroot:nonroot /app/bin/main /app/main
+FROM deps AS api-builder
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/bin/api ./cmd/api
+
+FROM deps AS scrapper-builder
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/bin/scrapper ./cmd/scrapper
+
+FROM gcr.io/distroless/static-debian12 as api-final
+WORKDIR /
+COPY --from=api-builder --chown=nonroot:nonroot /app/bin/api /app/api
 USER nonroot
-EXPOSE 8080
-ENTRYPOINT [ "/app/main" ]
+CMD [ "/app/api" ]
+
+FROM gcr.io/distroless/static-debian12 as scrapper-final
+WORKDIR /
+COPY --from=scrapper-builder --chown=nonroot:nonroot /app/bin/scrapper /app/scrapper
+USER nonroot
+CMD [ "/app/scrapper" ]

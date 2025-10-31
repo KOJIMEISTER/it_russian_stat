@@ -2,18 +2,33 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/KOJIMEISTER/it_russian_stat/internal/domain"
+	"github.com/KOJIMEISTER/it_russian_stat/internal/messaging"
 )
 
 func main() {
+	mux := http.NewServeMux()
+
+	rabbitService, err := messaging.NewRabbitMQService()
+	if err != nil {
+		log.Fatal("Failed to connect to RabbitMQ:", err)
+	}
+	defer rabbitService.Close()
+
+	mux.HandleFunc("/health", healthHandler)
+	mux.HandleFunc("/api/update", updateHandler(rabbitService))
+
 	srv := &http.Server{
 		Addr:    ":8080",
-		Handler: router(),
+		Handler: mux,
 	}
 	shutdown(srv)
 }
@@ -38,14 +53,24 @@ func shutdown(srv *http.Server) {
 	}
 }
 
-func router() http.Handler {
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/health", healthHandler)
-
-	return mux
-}
-
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
+}
+
+func updateHandler(rabbitService *messaging.RabbitMQService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req domain.UpdateRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+
+		if err := rabbitService.Publish(req); err != nil {
+			http.Error(w, "Failed to publish message", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(map[string]string{"status": "accepted"})
+	}
 }
