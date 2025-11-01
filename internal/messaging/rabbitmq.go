@@ -20,30 +20,26 @@ func NewRabbitMQService() (*RabbitMQService, error) {
 		return nil, err
 	}
 
-	channel, err := conn.Channel()
+	ch, err := conn.Channel()
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = channel.QueueDeclare(
-		"update_request",
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
+	if _, err = ch.QueueDeclare("update_request", true, false, false, false, nil); err != nil {
+		return nil, err
+	}
+
+	if _, err = ch.QueueDeclare("scrapper_status", true, false, false, false, nil); err != nil {
 		return nil, err
 	}
 
 	return &RabbitMQService{
 		Conn:    conn,
-		Channel: channel,
+		Channel: ch,
 	}, nil
 }
 
-func (s *RabbitMQService) Publish(message interface{}) error {
+func (s *RabbitMQService) PublishTo(queue string, message interface{}) error {
 	body, err := json.Marshal(message)
 	if err != nil {
 		return err
@@ -51,13 +47,25 @@ func (s *RabbitMQService) Publish(message interface{}) error {
 
 	return s.Channel.Publish(
 		"",
-		"update_request",
+		queue,
 		false,
 		false,
 		amqp091.Publishing{
 			ContentType: "application/json",
 			Body:        body,
 		},
+	)
+}
+
+func (s *RabbitMQService) Consume(queue string) (<-chan amqp091.Delivery, error) {
+	return s.Channel.Consume(
+		queue,
+		"",
+		true,
+		false,
+		false,
+		false,
+		nil,
 	)
 }
 

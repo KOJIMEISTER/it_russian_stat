@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
+	"time"
 
 	"github.com/KOJIMEISTER/it_russian_stat/internal/domain"
 	"github.com/KOJIMEISTER/it_russian_stat/internal/messaging"
@@ -15,15 +17,7 @@ func main() {
 	}
 	defer rabbitService.Close()
 
-	msgs, err := rabbitService.Channel.Consume(
-		"update_request",
-		"",
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
+	msgs, err := rabbitService.Consume("update_request")
 	if err != nil {
 		log.Fatal("Failed to register a consumer:", err)
 	}
@@ -32,13 +26,23 @@ func main() {
 
 	go func() {
 		for d := range msgs {
-			var req domain.UpdateRequest
+			var req domain.UpdateRequestMessage
+			msg := domain.ScrapperResponse{
+				RequestID: req.RequestID,
+				At:        time.Now().UTC(),
+			}
 			if err := json.Unmarshal(d.Body, &req); err != nil {
 				log.Printf("Error decoding message: %v", err)
-				continue
+				msg.Status = "error"
+				msg.StatusText = "wrong message format"
+			} else {
+				log.Printf("Recieved a message: %+v", req)
+				msg.Status = "recieved"
+				msg.StatusText = fmt.Sprintf("Scrapper accepted job for %s..%s", req.StartDate, req.EndDate)
 			}
-
-			log.Printf("Recieved a message: %+v", req)
+			if err := rabbitService.PublishTo(req.CallbackQueue, msg); err != nil {
+				log.Printf("Failed to publish scrapper status: %v", err)
+			}
 		}
 	}()
 
