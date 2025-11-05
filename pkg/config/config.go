@@ -6,13 +6,18 @@ type RabbitMQConfig struct {
 	URL string
 }
 
-func LoadRabbitMQConfig() RabbitMQConfig {
-	user := os.Getenv("RABBITMQ_USERNAME")
-	pass := os.Getenv("RABBITMQ_PASSWORD")
-	host := os.Getenv("RABBITMQ_HOST")
-	port := os.Getenv("RABBITMQ_PORT")
+type MongoDBConfig struct {
+	URL string
+}
 
+func LoadRabbitMQConfig() RabbitMQConfig {
 	return RabbitMQConfig{
-		URL: "amqp://" + user + ":" + pass + "@" + host + ":" + port + "/",
+		URL: os.Getenv("RABBITMQ_URI"),
+	}
+}
+
+func LoadMongoDBConfig() MongoDBConfig {
+	return MongoDBConfig{
+		URL: os.Getenv("MONGODB_URI"),
 	}
 }
