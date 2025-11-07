@@ -15,3 +15,19 @@ type ScrapperResponse struct {
 	StatusText string    `json:"status_text"`
 	At         time.Time `json:"at"`
 }
+
+type VacancySearchRequest struct {
+	StartDate string `json:"start_date"`
+	EndDate   string `json:"end_date"`
+	Area      string `json:"area"`
+	Role      string `json:"role"`
+	Page      int    `json:"page"`
+	PerPage   int    `json:"per_page"`
+}
+
+type VacancySearchResponse struct {
+	Pages     int `json:"pages"`
+	Vacancies []struct {
+		ID string `json:"id"`
+	} `json:"items"`
+}
