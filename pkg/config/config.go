@@ -7,7 +7,9 @@ type RabbitMQConfig struct {
 }
 
 type MongoDBConfig struct {
-	URL string
+	URL        string
+	Database   string
+	Collection string
 }
 
 func LoadRabbitMQConfig() RabbitMQConfig {
@@ -27,6 +29,8 @@ func LoadMongoDBConfig() MongoDBConfig {
 	database := os.Getenv("MONGODB_DATABASE")
 	pass := os.Getenv("MONGODB_PASSWORD")
 	return MongoDBConfig{
-		URL: "mongodb://" + user + ":" + pass + "@" + host + ":" + port + "/" + database + "?authSource=" + user,
+		URL:        "mongodb://" + user + ":" + pass + "@" + host + ":" + port + "/" + database + "?authSource=" + user,
+		Database:   database,
+		Collection: "vacancy",
 	}
 }
